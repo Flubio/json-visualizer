@@ -1,0 +1,49 @@
+{
+  "name": "json-viewer",
+  "version": "0.0.0",
+  "private": true,
+  "author": {
+    "name": "Flubio",
+    "email": "development@flubio.de"
+  },
+  "keywords": [
+    "angular",
+    "json",
+    "json viewer",
+    "json visualizer",
+    "json tree",
+    "json formatter"
+  ],
+  "scripts": {
+    "ng": "ng",
+    "start": "ng serve",
+    "build": "ng build",
+    "watch": "ng build --watch --configuration development",
+    "lint": "eslint",
+    "lint:fix": "eslint --fix"
+  },
+  "dependencies": {
+    "@angular/common": "^19.2.0",
+    "@angular/compiler": "^19.2.0",
+    "@angular/core": "^19.2.0",
+    "@angular/forms": "^19.2.0",
+    "@angular/platform-browser": "^19.2.0",
+    "@angular/platform-browser-dynamic": "^19.2.0",
+    "@angular/router": "^19.2.0",
+    "@monaco-editor/loader": "^1.5.0",
+    "monaco-editor": "^0.52.2",
+    "ngx-monaco": "^0.8.0",
+    "rxjs": "~7.8.0",
+    "tslib": "^2.3.0",
+    "zone.js": "~0.15.0"
+  },
+  "devDependencies": {
+    "@angular-devkit/build-angular": "^19.2.15",
+    "@angular/cli": "^19.2.15",
+    "@angular/compiler-cli": "^19.2.0",
+    "@antfu/eslint-config": "^5.2.1",
+    "eslint": "^9.34.0",
+    "ng-packagr": "^19.2.0",
+    "typescript": "~5.7.2"
+  }
+}
