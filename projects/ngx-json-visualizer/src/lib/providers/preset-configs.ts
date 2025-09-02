@@ -23,6 +23,7 @@ export function createDefaultConfig(): VisualizerConfig {
     dataTransformer: new DefaultDataTransformer(),
     layoutProvider: new DefaultLayoutProvider(),
     enableZooming: true,
+    zoomSpeedMultiplier: 1.0,
     theme: {
       node: {
         fontSize: '12px',
@@ -50,6 +51,7 @@ export function createHierarchicalConfig(): VisualizerConfig {
     dataTransformer: new HierarchicalDataTransformer(),
     layoutProvider: new DefaultLayoutProvider(),
     enableZooming: true,
+    zoomSpeedMultiplier: 1.0,
     theme: {
       node: {
         fontSize: '12px',
@@ -109,6 +111,7 @@ export const HIERARCHICAL_CONFIG: VisualizerConfig = {
   dataTransformer: new HierarchicalDataTransformer(),
   layoutProvider: new TreeLayoutProvider(),
   enableZooming: true,
+  zoomSpeedMultiplier: 1.0,
   theme: DARK_THEME,
   layout: {
     nodeSpacing: { x: 280, y: 120 },
