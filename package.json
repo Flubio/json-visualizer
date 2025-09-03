@@ -12,22 +12,11 @@
     "type": "git",
     "url": "git+https://github.com/Flubio/json-visualizer/.git"
   },
-  "keywords": [
-    "angular",
-    "json",
-    "json viewer",
-    "json visualizer",
-    "json tree",
-    "json formatter",
-    "data visualizer",
-    "data viewer",
-    "data tree",
-    "tree graph",
-    "tree"
-  ],
+  "keywords": [],
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
+    "start:showcase": "ng serve showcase --open",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "lint": "eslint",
@@ -42,9 +31,6 @@
     "@angular/platform-browser": "^19.2.0",
     "@angular/platform-browser-dynamic": "^19.2.0",
     "@angular/router": "^19.2.0",
-    "@monaco-editor/loader": "^1.5.0",
-    "monaco-editor": "^0.52.2",
-    "ngx-monaco": "^0.8.0",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
     "zone.js": "~0.15.0"
@@ -54,10 +40,13 @@
     "@angular/cli": "^19.2.15",
     "@angular/compiler-cli": "^19.2.0",
     "@antfu/eslint-config": "^5.2.1",
+    "@tailwindcss/postcss": "^4.0.0",
     "bumpp": "^10.2.3",
     "changelogen": "^0.6.2",
     "eslint": "^9.34.0",
     "ng-packagr": "^19.2.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.0.0",
     "typescript": "~5.7.2"
   }
 }

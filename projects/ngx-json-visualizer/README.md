@@ -24,6 +24,11 @@ pnpm add ngx-json-visualizer
 bun add ngx-json-visualizer
 ```
 
+### deno
+```bash
+deno add npm:ngx-json-visualizer
+```
+
 ## Setup
 
 Import the component in your Angular module or standalone component:

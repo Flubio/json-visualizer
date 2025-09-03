@@ -18,7 +18,7 @@ export class ZoomPanHandler {
   private panState: PanState = {
     panX: 0,
     panY: 0,
-    zoomLevel: 100,
+    zoomLevel: 150, // Start at 150% for bigger initial view
     isPanning: false,
     lastPanPoint: { x: 0, y: 0 },
     panHistory: [],
@@ -29,7 +29,7 @@ export class ZoomPanHandler {
   }
 
   private readonly minZoom = 10
-  private readonly maxZoom = 1000
+  private readonly maxZoom = 1000 // Allow much higher zoom levels
   private readonly velocityDecay = 0.92
   private readonly minVelocity = 0.1
 
@@ -180,7 +180,7 @@ export class ZoomPanHandler {
   }
 
   resetZoom(): void {
-    this.panState.zoomLevel = 100
+    this.panState.zoomLevel = 150 // Reset to 150% for bigger default view
     this.panState.panX = 0
     this.panState.panY = 0
     this.updateTransform()

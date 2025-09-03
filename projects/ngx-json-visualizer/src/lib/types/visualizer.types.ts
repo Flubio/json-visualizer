@@ -11,6 +11,7 @@ export interface VisualizerNode {
   y?: number
   originalData?: any
   metadata?: Record<string, any>
+  childrenHeight?: number // For layout calculations
 }
 
 export interface NodeStyle {

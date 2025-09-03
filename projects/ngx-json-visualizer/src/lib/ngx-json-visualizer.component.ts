@@ -33,9 +33,60 @@ import { ZoomPanHandler } from './utils/zoom-pan-handler'
         <button class="zoom-btn" (click)="resetZoom()" title="Reset Zoom">⌂</button>
       </div>
 
+      <!-- Debug Panel Toggle -->
+      <div class="debug-toggle" *ngIf="enableDebug">
+        <button class="debug-btn" (click)="toggleDebug()"
+                [class.active]="debugVisible"
+                title="Toggle Debug Panel">
+          🐛
+        </button>
+      </div>
+
+      <!-- Debug Panel -->
+      <div class="debug-panel" *ngIf="enableDebug && debugVisible">
+        <div class="debug-header">
+          <span class="debug-title">Debug Info</span>
+          <button class="debug-close" (click)="toggleDebug()" title="Close Debug Panel">×</button>
+        </div>
+        <div class="debug-content">
+          <div class="debug-item">
+            <span class="debug-label">Zoom:</span>
+            <span class="debug-value">{{ (getZoomLevel()) | number:'1.1-1' }}%</span>
+          </div>
+          <div class="debug-item">
+            <span class="debug-label">Pan X:</span>
+            <span class="debug-value">{{ getPanX() | number:'1.1-1' }}</span>
+          </div>
+          <div class="debug-item">
+            <span class="debug-label">Pan Y:</span>
+            <span class="debug-value">{{ getPanY() | number:'1.1-1' }}</span>
+          </div>
+          <div class="debug-item">
+            <span class="debug-label">Nodes:</span>
+            <span class="debug-value">{{ getNodeCount() }}</span>
+          </div>
+          <div class="debug-item">
+            <span class="debug-label">Links:</span>
+            <span class="debug-value">{{ getLinkCount() }}</span>
+          </div>
+          <div class="debug-item">
+            <span class="debug-label">SVG Size:</span>
+            <span class="debug-value">{{ width }}×{{ height }}</span>
+          </div>
+          <div class="debug-item">
+            <span class="debug-label">Dragging:</span>
+            <span class="debug-value">{{ isDragging() ? 'Yes' : 'No' }}</span>
+          </div>
+          <div class="debug-item">
+            <span class="debug-label">Config:</span>
+            <span class="debug-value">{{ currentConfig ? 'Loaded' : 'Default' }}</span>
+          </div>
+        </div>
+      </div>
+
       <!-- Smooth Zoom Indicator -->
       <div #zoomIndicator class="zoom-indicator">
-        {{ (getZoomLevel()) | number:'1.0-0' }}%
+        {{ (getZoomLevel()) }}%
       </div>
     </div>
   `,
@@ -49,10 +100,12 @@ export class JsonVisualizerComponent implements OnInit, OnChanges, OnDestroy {
   @Input() config: VisualizerConfig | null = null
   @Input() width = 800
   @Input() height = 600
+  @Input() enableDebug = false
 
   private nodes: VisualizerNode[] = []
   private links: Array<{ source: string, target: string }> = []
   currentConfig!: VisualizerConfig
+  debugVisible = false
 
   // Utility handlers
   private zoomPanHandler!: ZoomPanHandler
@@ -131,8 +184,9 @@ export class JsonVisualizerComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   private render(): void {
-    if (!this.data)
+    if (!this.data) {
       return
+    }
 
     try {
       // Transform data using data transformation handler
@@ -147,13 +201,13 @@ export class JsonVisualizerComponent implements OnInit, OnChanges, OnDestroy {
       const positions = this.layoutCalculator.calculateLayout(allNodes, this.links)
       this.layoutCalculator.applyPositionsToNodes(this.nodes, positions)
 
-      // Update utility handlers with current nodes
+      // Update utility handlers with current nodes and links
       this.collisionDetector.setAllNodes(allNodes)
       this.svgRenderer.setAllNodes(allNodes)
       this.svgRenderer.setLinks(this.links)
-
-      // Resolve initial collisions
-      this.collisionDetector.resolveInitialCollisions(allNodes)
+      this.nodeDragHandler.setAllNodes(allNodes)
+      this.nodeDragHandler.setLinks(this.links)
+      this.nodeDragHandler.setLayoutCalculator(this.layoutCalculator)
 
       // Render visualization using SVG renderer
       this.svgRenderer.renderVisualization(this.nodes, this.links)
@@ -180,6 +234,30 @@ export class JsonVisualizerComponent implements OnInit, OnChanges, OnDestroy {
   // Public methods for template
   getZoomLevel(): number {
     return this.zoomPanHandler?.getZoomLevel() || 100
+  }
+
+  toggleDebug(): void {
+    this.debugVisible = !this.debugVisible
+  }
+
+  getPanX(): number {
+    return this.zoomPanHandler?.getPanState().panX || 0
+  }
+
+  getPanY(): number {
+    return this.zoomPanHandler?.getPanState().panY || 0
+  }
+
+  getNodeCount(): number {
+    return this.flattenNodes(this.nodes).length
+  }
+
+  getLinkCount(): number {
+    return this.links.length
+  }
+
+  isDragging(): boolean {
+    return this.nodeDragHandler?.isDragging() || false
   }
 
   // Event handlers - delegate to utility handlers

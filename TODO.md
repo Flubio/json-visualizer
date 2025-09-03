@@ -1,0 +1,1 @@
+- panning needs to be smoother

@@ -5,6 +5,8 @@ export interface DragState {
   draggedNode: VisualizerNode | null
   dragOffset: { x: number, y: number }
   nodeElements: Map<string, SVGGElement>
+  svgElement: SVGSVGElement | null
+  animationId: number | null
 }
 
 export class NodeDragHandler {
@@ -13,7 +15,13 @@ export class NodeDragHandler {
     draggedNode: null,
     dragOffset: { x: 0, y: 0 },
     nodeElements: new Map(),
+    svgElement: null,
+    animationId: null,
   }
+
+  private allNodes: VisualizerNode[] = []
+  private links: Array<{ source: string, target: string }> = []
+  private layoutCalculator: any // Use any to avoid circular dependency
 
   constructor(
     private config: VisualizerConfig,
@@ -35,12 +43,15 @@ export class NodeDragHandler {
 
     const svg = event.target as Element
     const svgElement = svg.closest('svg') as SVGSVGElement
+    this.dragState.svgElement = svgElement
+
     const rect = svgElement.getBoundingClientRect()
 
     // Calculate mouse position in SVG coordinates
     const mouseX = (event.clientX - rect.left - this.panState.panX) / (this.panState.zoomLevel / 100)
     const mouseY = (event.clientY - rect.top - this.panState.panY) / (this.panState.zoomLevel / 100)
 
+    // Calculate offset from mouse to node's current position
     this.dragState.dragOffset = {
       x: mouseX - (node.x || 0),
       y: mouseY - (node.y || 0),
@@ -72,38 +83,87 @@ export class NodeDragHandler {
     }
   }
 
+  private lastMousePosition: { x: number, y: number } | null = null
+  private lastCollisionCheck = 0
+  private collisionCheckInterval = 16 // Check collisions every 16ms (60fps) for smoother feedback
+
   private onNodeDrag = (event: MouseEvent): void => {
-    if (!this.dragState.isDragging || !this.dragState.draggedNode)
+    if (!this.dragState.isDragging || !this.dragState.draggedNode || !this.dragState.svgElement) {
       return
+    }
 
-    const svg = document.querySelector('svg') as SVGSVGElement
-    const rect = svg.getBoundingClientRect()
+    const rect = this.dragState.svgElement.getBoundingClientRect()
 
-    // Calculate new position in SVG coordinates
+    // Calculate mouse position in SVG coordinates
     const mouseX = (event.clientX - rect.left - this.panState.panX) / (this.panState.zoomLevel / 100)
     const mouseY = (event.clientY - rect.top - this.panState.panY) / (this.panState.zoomLevel / 100)
 
-    const newX = mouseX - this.dragState.dragOffset.x
-    const newY = mouseY - this.dragState.dragOffset.y
+    // Store the latest mouse position
+    this.lastMousePosition = { x: mouseX, y: mouseY }
 
-    // Check for collisions with other nodes and highlight them
-    this.collisionDetector.highlightCollisions(this.dragState.draggedNode, newX, newY, this.dragState.nodeElements)
+    // Cancel previous animation frame if it exists
+    if (this.dragState.animationId) {
+      cancelAnimationFrame(this.dragState.animationId)
+    }
 
-    // Find valid position considering collisions
-    const validPosition = this.collisionDetector.findValidPosition(this.dragState.draggedNode, newX, newY)
+    // Use requestAnimationFrame for smooth updates
+    this.dragState.animationId = requestAnimationFrame(() => {
+      if (this.lastMousePosition && this.dragState.draggedNode) {
+        // Position node so the mouse cursor stays at the same relative position on the node
+        const newX = this.lastMousePosition.x - this.dragState.dragOffset.x
+        const newY = this.lastMousePosition.y - this.dragState.dragOffset.y
 
-    // Update node position
-    this.dragState.draggedNode.x = validPosition.x
-    this.dragState.draggedNode.y = validPosition.y
+        // Check for collisions less frequently for better performance
+        const now = Date.now()
+        let finalX = newX
+        let finalY = newY
 
-    // Update visual representation
-    this.updateNodePosition(this.dragState.draggedNode)
+        if (now - this.lastCollisionCheck > this.collisionCheckInterval) {
+          // Check collisions and find valid position
+          const validPosition = this.collisionDetector.findValidPosition(this.dragState.draggedNode, newX, newY)
+          finalX = validPosition.x
+          finalY = validPosition.y
+          this.lastCollisionCheck = now
+
+          // Highlight collisions for visual feedback
+          this.collisionDetector.highlightCollisions(this.dragState.draggedNode, newX, newY, this.dragState.nodeElements)
+        }
+
+        // Update position
+        this.dragState.draggedNode.x = finalX
+        this.dragState.draggedNode.y = finalY
+
+        // Update visual representation immediately for smooth movement
+        this.updateNodePositionDirect(this.dragState.draggedNode)
+      }
+      this.dragState.animationId = null
+    })
   }
 
   private onNodeDragEnd = (): void => {
+    // Cancel any pending animation frame
+    if (this.dragState.animationId) {
+      cancelAnimationFrame(this.dragState.animationId)
+      this.dragState.animationId = null
+    }
+
     if (this.dragState.draggedNode) {
       // Remove visual feedback
       this.removeDragVisualFeedback(this.dragState.draggedNode)
+
+      // Update links after drag is complete for better performance
+      this.svgRenderer.updateLinks()
+
+      // Trigger reordering of connected nodes for better layout
+      if (this.layoutCalculator && this.allNodes && this.links) {
+        this.layoutCalculator.reorderConnectedNodes(
+          this.dragState.draggedNode,
+          this.allNodes,
+          this.links,
+        )
+        // Update positions for reordered nodes and refresh links
+        this.svgRenderer.updateLinks()
+      }
     }
 
     // Clear collision highlights
@@ -111,16 +171,34 @@ export class NodeDragHandler {
 
     this.dragState.isDragging = false
     this.dragState.draggedNode = null
+    this.dragState.svgElement = null
+    this.lastMousePosition = null
 
     // Remove global listeners
     document.removeEventListener('mousemove', this.onNodeDrag)
     document.removeEventListener('mouseup', this.onNodeDragEnd)
   }
 
+  private updateNodePositionDirect(node: VisualizerNode): void {
+    const group = this.dragState.nodeElements.get(node.id)
+    if (!group || node.x === undefined || node.y === undefined) {
+      return
+    }
+
+    // Move the whole group using transform - this is the fastest way
+    group.setAttribute('transform', `translate(${node.x}, ${node.y})`)
+
+    // Update links during drag for better visual feedback (throttled)
+    if (Date.now() - this.lastCollisionCheck > this.collisionCheckInterval) {
+      this.svgRenderer.updateLinks()
+    }
+  }
+
   private updateNodePosition(node: VisualizerNode): void {
     const group = this.dragState.nodeElements.get(node.id)
-    if (!group || node.x === undefined || node.y === undefined)
+    if (!group || node.x === undefined || node.y === undefined) {
       return
+    }
 
     // Move the whole group using transform
     group.setAttribute('transform', `translate(${node.x}, ${node.y})`)
@@ -154,5 +232,17 @@ export class NodeDragHandler {
     this.panState.panX = panX
     this.panState.panY = panY
     this.panState.zoomLevel = zoomLevel
+  }
+
+  setAllNodes(allNodes: VisualizerNode[]): void {
+    this.allNodes = allNodes
+  }
+
+  setLinks(links: Array<{ source: string, target: string }>): void {
+    this.links = links
+  }
+
+  setLayoutCalculator(layoutCalculator: any): void {
+    this.layoutCalculator = layoutCalculator
   }
 }

@@ -1,5 +1,5 @@
 import type { ElementRef } from '@angular/core'
-import type { VisualizerConfig, VisualizerNode } from '../types/visualizer.types'
+import type { NodeStyle, VisualizerConfig, VisualizerNode } from '../types/visualizer.types'
 
 export class SVGRenderer {
   private nodeElements = new Map<string, SVGGElement>()
@@ -71,9 +71,6 @@ export class SVGRenderer {
       const targetNode = allNodes.find(n => n.id === link.target)
 
       if (sourceNode && targetNode && sourceNode.x !== undefined && targetNode.x !== undefined) {
-        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line')
-        line.classList.add('link-line')
-
         // Calculate connection points based on node style
         const sourceStyle = this.getNodeRenderer(sourceNode)?.getNodeStyle?.(sourceNode)
         const targetStyle = this.getNodeRenderer(targetNode)?.getNodeStyle?.(targetNode)
@@ -82,20 +79,37 @@ export class SVGRenderer {
         const sourceHeight = sourceStyle?.height || 40
         const targetHeight = targetStyle?.height || 40
 
-        line.setAttribute('x1', String((sourceNode.x ?? 0) + sourceWidth))
-        line.setAttribute('y1', String((sourceNode.y ?? 0) + sourceHeight / 2))
-        line.setAttribute('x2', String(targetNode.x ?? 0))
-        line.setAttribute('y2', String((targetNode.y ?? 0) + targetHeight / 2))
-        line.setAttribute('marker-end', 'url(#arrowhead)')
+        const x1 = (sourceNode.x ?? 0) + sourceWidth
+        const y1 = (sourceNode.y ?? 0) + sourceHeight / 2
+        const x2 = targetNode.x ?? 0
+        const y2 = (targetNode.y ?? 0) + targetHeight / 2
+
+        // Create curved path instead of straight line
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path')
+        path.classList.add('link-line')
+
+        // Calculate control points for smooth curve
+        const dx = Math.abs(x2 - x1)
+        const controlOffset = Math.min(dx * 0.5, 100) // Limit curve intensity
+
+        const pathData = `M ${x1} ${y1} C ${x1 + controlOffset} ${y1}, ${x2 - controlOffset} ${y2}, ${x2} ${y2}`
+        path.setAttribute('d', pathData)
+        path.setAttribute('fill', 'none')
+        path.setAttribute('marker-end', 'url(#arrowhead)')
 
         // Apply theme styles
         const linkTheme = this.config.theme?.link
         if (linkTheme?.stroke)
-          line.setAttribute('stroke', linkTheme.stroke)
-        if (linkTheme?.strokeWidth)
-          line.setAttribute('stroke-width', String(linkTheme.strokeWidth))
+          path.setAttribute('stroke', linkTheme.stroke)
+        else
+          path.setAttribute('stroke', '#a0aec0')
 
-        container.appendChild(line)
+        if (linkTheme?.strokeWidth)
+          path.setAttribute('stroke-width', String(linkTheme.strokeWidth))
+        else
+          path.setAttribute('stroke-width', '2')
+
+        container.appendChild(path)
       }
     })
   }
@@ -105,8 +119,9 @@ export class SVGRenderer {
     this.nodeElements.clear()
 
     allNodes.forEach((node) => {
-      if (node.x === undefined || node.y === undefined)
+      if (node.x === undefined || node.y === undefined) {
         return
+      }
 
       const group = document.createElementNS('http://www.w3.org/2000/svg', 'g')
       group.setAttribute('data-node-id', node.id)
@@ -121,14 +136,7 @@ export class SVGRenderer {
 
       if (renderer) {
         // Get node style from renderer
-        const nodeStyle = renderer.getNodeStyle?.(node) || {
-          fill: '#f7fafc',
-          stroke: '#cbd5e0',
-          strokeWidth: 1,
-          rx: 6,
-          width: 160,
-          height: 40,
-        }
+        const nodeStyle = renderer.getNodeStyle?.(node) || this.getDefaultNodeStyle(node)
 
         // Create base rectangle with hitbox
         const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
@@ -143,11 +151,23 @@ export class SVGRenderer {
         rect.setAttribute('stroke', nodeStyle.stroke || '#cbd5e0')
         rect.setAttribute('stroke-width', String(nodeStyle.strokeWidth || 1))
 
-        // Add drag event listeners to the rectangle if drag handler is available
+        // Create invisible larger hitbox for easier dragging
+        const hitbox = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
+        hitbox.classList.add('node-hitbox')
+        const hitboxPadding = 10
+        hitbox.setAttribute('x', String(-hitboxPadding))
+        hitbox.setAttribute('y', String(-hitboxPadding))
+        hitbox.setAttribute('width', String((nodeStyle.width || 160) + 2 * hitboxPadding))
+        hitbox.setAttribute('height', String((nodeStyle.height || 40) + 2 * hitboxPadding))
+        hitbox.setAttribute('fill', 'transparent')
+        hitbox.setAttribute('cursor', 'move')
+
+        // Add drag event listeners to the hitbox if drag handler is available
         if (this.nodeDragHandler) {
-          this.nodeDragHandler.addNodeDragListeners(rect, node)
+          this.nodeDragHandler.addNodeDragListeners(hitbox, node)
         }
 
+        group.appendChild(hitbox) // Add hitbox first (behind visible elements)
         group.appendChild(rect)
 
         // Let renderer handle content
@@ -162,33 +182,77 @@ export class SVGRenderer {
     })
   }
 
+  private getDefaultNodeStyle(node: VisualizerNode): NodeStyle {
+    const colors = {
+      root: { fill: '#4a5568', stroke: '#718096' },
+      object: { fill: '#2d3748', stroke: '#4299e1' },
+      array: { fill: '#2c5282', stroke: '#3182ce' },
+      leaf: { fill: '#2f855a', stroke: '#38a169' },
+    }
+
+    const style = colors[node.type] || colors.leaf
+
+    return {
+      fill: style.fill,
+      stroke: style.stroke,
+      strokeWidth: 2,
+      rx: 8,
+      width: 160,
+      height: 40,
+      textColor: '#ffffff',
+      fontSize: 12,
+    }
+  }
+
   private getNodeRenderer(node: VisualizerNode) {
     return this.config.nodeRenderers.find(renderer => renderer.canHandle(node))
   }
 
   private renderDefaultNode(node: VisualizerNode, container: SVGGElement): void {
+    // Get style for this node type
+    const style = this.getDefaultNodeStyle(node)
+
     // Render relative to the group's origin (0,0). The group is positioned via transform.
     const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
     rect.classList.add('node-rect')
     rect.setAttribute('x', '0')
     rect.setAttribute('y', '0')
-    rect.setAttribute('width', '160')
-    rect.setAttribute('height', '40')
-    rect.setAttribute('rx', '6')
-    rect.setAttribute('fill', '#f7fafc')
-    rect.setAttribute('stroke', '#cbd5e0')
-    rect.setAttribute('stroke-width', '1')
+    rect.setAttribute('width', String(style.width || 160))
+    rect.setAttribute('height', String(style.height || 40))
+    rect.setAttribute('rx', String(style.rx || 6))
+    rect.setAttribute('fill', style.fill || '#f7fafc')
+    rect.setAttribute('stroke', style.stroke || '#cbd5e0')
+    rect.setAttribute('stroke-width', String(style.strokeWidth || 1))
 
-    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text')
-    text.classList.add('node-text')
-    text.setAttribute('x', String(160 / 2))
-    text.setAttribute('y', String(40 / 2 + 5))
-    text.setAttribute('text-anchor', 'middle')
-    text.setAttribute('dominant-baseline', 'middle')
-    text.textContent = this.truncateText(node.name, 15)
+    // Name text
+    const nameText = document.createElementNS('http://www.w3.org/2000/svg', 'text')
+    nameText.classList.add('node-text')
+    nameText.setAttribute('x', String((style.width || 160) / 2))
+    nameText.setAttribute('y', String((style.height || 40) / 2 - (node.value !== undefined ? 8 : 0)))
+    nameText.setAttribute('text-anchor', 'middle')
+    nameText.setAttribute('dominant-baseline', 'middle')
+    nameText.setAttribute('fill', style.textColor || 'white')
+    nameText.setAttribute('font-size', String(style.fontSize || 12))
+    nameText.setAttribute('font-weight', 'bold')
+    nameText.textContent = this.truncateText(node.name, 18)
 
     container.appendChild(rect)
-    container.appendChild(text)
+    container.appendChild(nameText)
+
+    // Value text if present
+    if (node.value !== undefined) {
+      const valueText = document.createElementNS('http://www.w3.org/2000/svg', 'text')
+      valueText.classList.add('node-value')
+      valueText.setAttribute('x', String((style.width || 160) / 2))
+      valueText.setAttribute('y', String((style.height || 40) / 2 + 10))
+      valueText.setAttribute('text-anchor', 'middle')
+      valueText.setAttribute('dominant-baseline', 'middle')
+      valueText.setAttribute('fill', style.textColor || 'white')
+      valueText.setAttribute('font-size', String((style.fontSize || 12) - 1))
+      valueText.setAttribute('font-style', 'italic')
+      valueText.textContent = this.truncateText(String(node.value), 20)
+      container.appendChild(valueText)
+    }
   }
 
   private updateSvgDimensions(svg: SVGSVGElement, _allNodes: VisualizerNode[]): void {
@@ -204,13 +268,17 @@ export class SVGRenderer {
 
   updateLinks(): void {
     const contentGroup = this.contentGroupRef.nativeElement
+    if (!contentGroup)
+      return
 
     // Remove existing links
     const existingLinks = contentGroup.querySelectorAll('.link-line')
     existingLinks.forEach(link => link.remove())
 
     // Re-render links with updated positions
-    this.renderLinks(contentGroup, this.allNodes)
+    if (this.allNodes && this.allNodes.length > 0) {
+      this.renderLinks(contentGroup, this.allNodes)
+    }
   }
 
   renderError(message: string): void {
