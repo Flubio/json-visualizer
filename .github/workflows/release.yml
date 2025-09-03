@@ -8,7 +8,7 @@ on:
     tags:
       - 'v*'
   workflow_run:
-    workflows: ["Autofix"]
+    workflows: [Autofix]
     types: [completed]
     branches: [main]
 
