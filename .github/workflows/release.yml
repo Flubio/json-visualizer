@@ -43,11 +43,10 @@ jobs:
           echo "Publishing version: $VERSION"
           npm version $VERSION --no-git-tag-version
 
-      - name: Publish to NPM
-        working-directory: ./dist/ngx-json-visualizer
-        run: npm publish --access public
+      - name: Release npm package
+        run: pnpm publish --access public --no-git-checks
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
 
       - run: npx changelogithub
         env:
