@@ -21,6 +21,35 @@ jobs:
         with:
           node-version: 22
 
+       - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint code
+        run: pnpm lint
+
+      - name: Build library
+        run: pnpm ng build ngx-json-visualizer --configuration production
+
+      - name: Update package version
+        working-directory: ./dist/ngx-json-visualizer
+        run: |
+          # Extract version from git tag (remove 'v' prefix)
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "Publishing version: $VERSION"
+          npm version $VERSION --no-git-tag-version
+
+      - name: Publish to NPM
+        working-directory: ./dist/ngx-json-visualizer
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
       - run: npx changelogithub
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
