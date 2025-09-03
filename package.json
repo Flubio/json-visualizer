@@ -1,5 +1,5 @@
 {
-  "name": "json-viewer",
+  "name": "json-visualizer",
   "version": "0.0.0",
   "packageManager": "pnpm@10.15.0",
   "description": "An highly customizable and extensible Data Visualizer",
