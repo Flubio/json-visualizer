@@ -106,15 +106,19 @@ export class DataTransformationHandler {
   }
 
   private formatPrimitiveValue(value: any): string {
-    if (value === null) return 'null'
-    if (value === undefined) return 'undefined'
+    if (value === null)
+      return 'null'
+    if (value === undefined)
+      return 'undefined'
     if (typeof value === 'string') {
       // Truncate long strings and add quotes
       const truncated = value.length > 20 ? `${value.substring(0, 20)}...` : value
       return `"${truncated}"`
     }
-    if (typeof value === 'boolean') return value.toString()
-    if (typeof value === 'number') return value.toString()
+    if (typeof value === 'boolean')
+      return value.toString()
+    if (typeof value === 'number')
+      return value.toString()
     return String(value)
   }
 
