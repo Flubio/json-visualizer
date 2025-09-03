@@ -1,6 +1,6 @@
 {
   "name": "ngx-json-visualizer",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "sideEffects": false,
   "peerDependencies": {
     "@angular/common": "^19.2.0",

@@ -1,10 +1,16 @@
 {
   "name": "json-viewer",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.0.1",
+  "packageManager": "pnpm@10.15.0",
+  "description": "An highly customizable and extensible Data Visualizer",
   "author": {
     "name": "Flubio",
     "email": "development@flubio.de"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Flubio/json-visualizer/.git"
   },
   "keywords": [
     "angular",
@@ -12,7 +18,12 @@
     "json viewer",
     "json visualizer",
     "json tree",
-    "json formatter"
+    "json formatter",
+    "data visualizer",
+    "data viewer",
+    "data tree",
+    "tree graph",
+    "tree"
   ],
   "scripts": {
     "ng": "ng",
@@ -20,7 +31,8 @@
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "lint": "eslint",
-    "lint:fix": "eslint --fix"
+    "lint:fix": "eslint --fix",
+    "release": "bumpp && pnpm publish"
   },
   "dependencies": {
     "@angular/common": "^19.2.0",
@@ -42,6 +54,8 @@
     "@angular/cli": "^19.2.15",
     "@angular/compiler-cli": "^19.2.0",
     "@antfu/eslint-config": "^5.2.1",
+    "bumpp": "^10.2.3",
+    "changelogen": "^0.6.2",
     "eslint": "^9.34.0",
     "ng-packagr": "^19.2.0",
     "typescript": "~5.7.2"
