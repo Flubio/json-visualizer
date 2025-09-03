@@ -2,20 +2,80 @@
 
 Angular component for rendering hierarchical JSON data as interactive SVG tree diagrams with zoom/pan controls.
 
-## Quick Start
+## Installation
+
+### npm
+```bash
+npm install ngx-json-visualizer
+```
+
+### yarn
+```bash
+yarn add ngx-json-visualizer
+```
+
+### pnpm
+```bash
+pnpm add ngx-json-visualizer
+```
+
+### bun
+```bash
+bun add ngx-json-visualizer
+```
+
+## Setup
+
+Import the component in your Angular module or standalone component:
 
 ```typescript
-import { JsonVisualizerComponent } from './json-visualizer.component'
-import { createDefaultConfig } from './providers/preset-configs'
+// For standalone components (Angular 14+)
+import { JsonVisualizerComponent } from 'ngx-json-visualizer'
 
 @Component({
+  standalone: true,
+  imports: [JsonVisualizerComponent],
   template: `
-    <app-json-visualizer
+    <ngx-json-visualizer
       [data]="data"
       [config]="config"
       [width]="800"
       [height]="600">
-    </app-json-visualizer>
+    </ngx-json-visualizer>
+  `
+})
+export class ExampleComponent {
+  // component code
+}
+```
+
+```typescript
+// For NgModule-based apps
+import { NgxJsonVisualizerModule } from 'ngx-json-visualizer'
+
+@NgModule({
+  imports: [NgxJsonVisualizerModule],
+  // ...
+})
+export class AppModule { }
+```
+
+## Quick Start
+
+```typescript
+import { Component } from '@angular/core'
+import { createDefaultConfig, JsonVisualizerComponent } from 'ngx-json-visualizer'
+
+@Component({
+  standalone: true,
+  imports: [JsonVisualizerComponent],
+  template: `
+    <ngx-json-visualizer
+      [data]="data"
+      [config]="config"
+      [width]="800"
+      [height]="600">
+    </ngx-json-visualizer>
   `
 })
 export class ExampleComponent {
@@ -35,6 +95,8 @@ export class ExampleComponent {
 ### Core Types
 
 ```typescript
+import { NodeRenderer, VisualizerConfig, VisualizerNode } from 'ngx-json-visualizer'
+
 interface VisualizerConfig {
   nodeRenderers: NodeRenderer[]
   dataTransformer: DataTransformer
@@ -66,7 +128,7 @@ import {
   createDefaultConfig,
   createDeviceConfig,
   TENANT_DEVICE_CONFIG
-} from './providers/preset-configs'
+} from 'ngx-json-visualizer'
 
 // Basic JSON visualization
 const config = createDefaultConfig()
@@ -84,6 +146,8 @@ const tenantConfig = TENANT_DEVICE_CONFIG
 ## Custom Renderers
 
 ```typescript
+import { NodeRenderer, NodeStyle, VisualizerNode } from 'ngx-json-visualizer'
+
 class CustomNodeRenderer implements NodeRenderer {
   canHandle = (node: VisualizerNode): boolean => {
     return node.originalData?.type === 'custom'
@@ -110,7 +174,9 @@ const config: VisualizerConfig = {
 ## Layout Configuration
 
 ```typescript
-const config = {
+import { VisualizerConfig } from 'ngx-json-visualizer'
+
+const config: VisualizerConfig = {
   layout: {
     nodeSpacing: { x: 220, y: 80 },
     padding: { top: 20, right: 20, bottom: 20, left: 20 }
@@ -123,9 +189,9 @@ const config = {
 ## Theming
 
 ```typescript
-import { DARK_THEME, LIGHT_THEME } from './providers/preset-configs'
+import { DARK_THEME, LIGHT_THEME, VisualizerConfig } from 'ngx-json-visualizer'
 
-const config = {
+const config: VisualizerConfig = {
   theme: DARK_THEME,
   // or custom theme
   theme: {
@@ -138,7 +204,9 @@ const config = {
 ## Event Handling
 
 ```typescript
-const config = {
+import { VisualizerConfig } from 'ngx-json-visualizer'
+
+const config: VisualizerConfig = {
   onNodeClick: (node, event) => {
     console.log('Clicked:', node.name)
   },
@@ -169,14 +237,19 @@ Nodes can be individually dragged to reposition them within the canvas:
 
 ### Usage Example with Enhanced Features
 ```typescript
+import { Component } from '@angular/core'
+import { createDefaultConfig, JsonVisualizerComponent } from 'ngx-json-visualizer'
+
 @Component({
+  standalone: true,
+  imports: [JsonVisualizerComponent],
   template: `
-    <app-json-visualizer
+    <ngx-json-visualizer
       [data]="complexData"
       [config]="enhancedConfig"
       [width]="1000"
       [height]="800">
-    </app-json-visualizer>
+    </ngx-json-visualizer>
   `
 })
 export class InteractiveExampleComponent {

@@ -9,7 +9,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Flubio/json-visualizer/.git"
+    "url": "https://github.com/Flubio/json-visualizer/"
   },
   "keywords": [
     "angular",
