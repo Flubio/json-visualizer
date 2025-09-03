@@ -125,7 +125,7 @@ export class SVGRenderer {
 
       const group = document.createElementNS('http://www.w3.org/2000/svg', 'g')
       group.setAttribute('data-node-id', node.id)
-      group.style.cursor = 'move'
+      group.style.cursor = this.config.enableDragging ? 'move' : 'default'
       // Position group using transform so renderer-internal coordinates remain relative
       group.setAttribute('transform', `translate(${node.x}, ${node.y})`)
 
@@ -160,7 +160,7 @@ export class SVGRenderer {
         hitbox.setAttribute('width', String((nodeStyle.width || 160) + 2 * hitboxPadding))
         hitbox.setAttribute('height', String((nodeStyle.height || 40) + 2 * hitboxPadding))
         hitbox.setAttribute('fill', 'transparent')
-        hitbox.setAttribute('cursor', 'move')
+        hitbox.setAttribute('cursor', this.config.enableDragging ? 'move' : 'default')
 
         // Add drag event listeners to the hitbox if drag handler is available
         if (this.nodeDragHandler) {
@@ -271,9 +271,11 @@ export class SVGRenderer {
     if (!contentGroup)
       return
 
-    // Remove existing links
+    // Remove existing links more efficiently
     const existingLinks = contentGroup.querySelectorAll('.link-line')
-    existingLinks.forEach(link => link.remove())
+    if (existingLinks.length > 0) {
+      existingLinks.forEach(link => link.remove())
+    }
 
     // Re-render links with updated positions
     if (this.allNodes && this.allNodes.length > 0) {

@@ -1,1 +1,5 @@
+- dragging does not work properly
+- data display needs to be adjustable through models
 - panning needs to be smoother
+- links dissapear when node is moved
+- work on showcase application

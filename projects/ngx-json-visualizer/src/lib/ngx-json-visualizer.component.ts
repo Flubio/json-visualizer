@@ -78,6 +78,10 @@ import { ZoomPanHandler } from './utils/zoom-pan-handler'
             <span class="debug-value">{{ isDragging() ? 'Yes' : 'No' }}</span>
           </div>
           <div class="debug-item">
+            <span class="debug-label">Drag Enabled:</span>
+            <span class="debug-value">{{ isDraggingEnabled() ? 'Yes' : 'No' }}</span>
+          </div>
+          <div class="debug-item">
             <span class="debug-label">Config:</span>
             <span class="debug-value">{{ currentConfig ? 'Loaded' : 'Default' }}</span>
           </div>
@@ -258,6 +262,10 @@ export class JsonVisualizerComponent implements OnInit, OnChanges, OnDestroy {
 
   isDragging(): boolean {
     return this.nodeDragHandler?.isDragging() || false
+  }
+
+  isDraggingEnabled(): boolean {
+    return this.nodeDragHandler?.isDraggingEnabled() ?? true
   }
 
   // Event handlers - delegate to utility handlers

@@ -128,6 +128,7 @@ export interface VisualizerConfig {
   enablePanning?: boolean
   enableZooming?: boolean
   enableHover?: boolean
+  enableDragging?: boolean
   panSpeedMultiplier?: number
   zoomSpeedMultiplier?: number
   maxDepth?: number

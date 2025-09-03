@@ -19,11 +19,19 @@ import {
 
 export function createDefaultConfig(): VisualizerConfig {
   return {
+    // Node rendering and data transformation
     nodeRenderers: [new DefaultNodeRenderer()],
     dataTransformer: new DefaultDataTransformer(),
     layoutProvider: new DefaultLayoutProvider(),
+
+    // Interaction settings
     enableZooming: true,
+    enablePanning: true,
+    enableDragging: true, // Set to false to disable node dragging
+    panSpeedMultiplier: 1.5, // Increased for smoother panning
     zoomSpeedMultiplier: 1.0,
+
+    // Theme and layout
     theme: {
       node: {
         fontSize: '12px',

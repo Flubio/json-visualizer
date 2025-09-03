@@ -15,6 +15,8 @@ export class AppComponent implements OnInit, OnChanges {
 
   visualizerConfig: VisualizerConfig = createDefaultConfig()
 
+  draggingEnabled = signal(true)
+
   data = signal<any>({
     name: 'John Doe',
     age: 30,
@@ -65,7 +67,8 @@ export class AppComponent implements OnInit, OnChanges {
       ...createDefaultConfig(),
       enableZooming: true,
       enablePanning: true,
-      panSpeedMultiplier: 20,
+      panSpeedMultiplier: 15,
+      enableDragging: this.draggingEnabled(),
       layoutProvider: new TreeLayoutProvider(),
       zoomSpeedMultiplier: 50,
       layout: {
@@ -87,5 +90,11 @@ export class AppComponent implements OnInit, OnChanges {
         },
       },
     }
+  }
+
+  toggleDragging(event: Event): void {
+    const target = event.target as HTMLInputElement
+    this.draggingEnabled.set(target.checked)
+    this.updateConfig()
   }
 }

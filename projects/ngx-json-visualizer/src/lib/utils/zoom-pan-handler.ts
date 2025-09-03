@@ -30,8 +30,8 @@ export class ZoomPanHandler {
 
   private readonly minZoom = 10
   private readonly maxZoom = 1000 // Allow much higher zoom levels
-  private readonly velocityDecay = 0.92
-  private readonly minVelocity = 0.1
+  private readonly velocityDecay = 0.94 // Slightly less decay for smoother momentum
+  private readonly minVelocity = 0.05 // Lower threshold for longer momentum
 
   constructor(
     private config: VisualizerConfig,
@@ -255,8 +255,8 @@ export class ZoomPanHandler {
     }
 
     if (totalTime > 0) {
-      // Scale velocity based on time
-      const velocityScale = Math.min(100 / totalTime, 2.0)
+      // Scale velocity based on time with improved responsiveness
+      const velocityScale = Math.min(150 / totalTime, 3.0) // Increased scale for more responsive momentum
       this.panState.panVelocity.x = (totalDeltaX / this.panState.panHistory.length) * velocityScale
       this.panState.panVelocity.y = (totalDeltaY / this.panState.panHistory.length) * velocityScale
     }

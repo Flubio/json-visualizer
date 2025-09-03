@@ -31,6 +31,11 @@ export class NodeDragHandler {
   ) { }
 
   addNodeDragListeners(rect: SVGRectElement, node: VisualizerNode): void {
+    // Only add drag listeners if dragging is enabled
+    if (!this.config.enableDragging) {
+      return
+    }
+
     rect.addEventListener('mousedown', (event) => {
       event.stopPropagation() // Prevent panning
       this.startNodeDrag(event, node)
@@ -56,6 +61,10 @@ export class NodeDragHandler {
       x: mouseX - (node.x || 0),
       y: mouseY - (node.y || 0),
     }
+
+    // Increase drag sensitivity for more responsive movement
+    this.dragState.dragOffset.x *= 0.8 // Reduce offset to make movement more responsive
+    this.dragState.dragOffset.y *= 0.8
 
     // Add visual feedback for dragging
     this.addDragVisualFeedback(node)
@@ -86,6 +95,7 @@ export class NodeDragHandler {
   private lastMousePosition: { x: number, y: number } | null = null
   private lastCollisionCheck = 0
   private collisionCheckInterval = 16 // Check collisions every 16ms (60fps) for smoother feedback
+  private lastLinkUpdate = 0
 
   private onNodeDrag = (event: MouseEvent): void => {
     if (!this.dragState.isDragging || !this.dragState.draggedNode || !this.dragState.svgElement) {
@@ -164,6 +174,9 @@ export class NodeDragHandler {
         // Update positions for reordered nodes and refresh links
         this.svgRenderer.updateLinks()
       }
+
+      // Final link update to ensure all connections are properly rendered
+      setTimeout(() => this.svgRenderer.updateLinks(), 16)
     }
 
     // Clear collision highlights
@@ -188,9 +201,11 @@ export class NodeDragHandler {
     // Move the whole group using transform - this is the fastest way
     group.setAttribute('transform', `translate(${node.x}, ${node.y})`)
 
-    // Update links during drag for better visual feedback (throttled)
-    if (Date.now() - this.lastCollisionCheck > this.collisionCheckInterval) {
+    // Update links during drag for better visual feedback (more frequent updates)
+    const now = Date.now()
+    if (now - this.lastLinkUpdate > 8) { // Update links at ~120fps during drag
       this.svgRenderer.updateLinks()
+      this.lastLinkUpdate = now
     }
   }
 
@@ -222,6 +237,10 @@ export class NodeDragHandler {
 
   isDragging(): boolean {
     return this.dragState.isDragging
+  }
+
+  isDraggingEnabled(): boolean {
+    return this.config.enableDragging ?? true
   }
 
   setNodeElements(nodeElements: Map<string, SVGGElement>): void {
