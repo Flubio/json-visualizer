@@ -1,6 +1,29 @@
 {
   "name": "ngx-json-visualizer",
   "version": "0.0.0",
+  "description": "An highly customizable and extensible Data Visualizer",
+  "author": {
+    "name": "Flubio",
+    "email": "development@flubio.de"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Flubio/json-visualizer/.git"
+  },
+  "keywords": [
+    "angular",
+    "json",
+    "json viewer",
+    "json visualizer",
+    "json tree",
+    "json formatter",
+    "data visualizer",
+    "data viewer",
+    "data tree",
+    "tree graph",
+    "tree"
+  ],
   "sideEffects": false,
   "peerDependencies": {
     "@angular/common": "^19.2.0",
