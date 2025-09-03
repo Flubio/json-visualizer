@@ -167,8 +167,8 @@ export class SVGRenderer {
           this.nodeDragHandler.addNodeDragListeners(hitbox, node)
         }
 
-        group.appendChild(hitbox) // Add hitbox first (behind visible elements)
         group.appendChild(rect)
+        group.appendChild(hitbox) // Add hitbox first (behind visible elements)
 
         // Let renderer handle content
         renderer.renderContent(node, group)
