@@ -1,0 +1,80 @@
+name: Release
+
+permissions:
+  contents: write
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_run:
+    workflows: [Autofix]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    # Only run if workflow was triggered by tag push, or if autofix workflow completed successfully
+    if: |
+      github.event_name == 'push' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # If triggered by workflow_run, checkout the tag that matches the workflow run
+      - name: Get tag from workflow run
+        if: github.event_name == 'workflow_run'
+        id: get-tag
+        run: |
+          TAG=$(git tag --contains ${{ github.event.workflow_run.head_sha }} | grep "^v" | head -1)
+          if [ -z "$TAG" ]; then
+            echo "No version tag found for this workflow run"
+            exit 1
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          git checkout $TAG
+
+      - name: Set node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.0
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint code
+        run: pnpm lint
+
+      - name: Build library
+        run: pnpm ng build ngx-json-visualizer --configuration production
+
+      - name: Update package version
+        working-directory: ./dist/ngx-json-visualizer
+        run: |
+          # Extract version from git tag (remove 'v' prefix)
+          if [ "${{ github.event_name }}" == "workflow_run" ]; then
+            VERSION=${steps.get-tag.outputs.tag#v}
+          else
+            VERSION=${GITHUB_REF#refs/tags/v}
+          fi
+          echo "Publishing version: $VERSION"
+          npm version $VERSION --no-git-tag-version
+
+      - name: Release npm package
+        run: pnpm publish --access public --no-git-checks
+        working-directory: ./dist/ngx-json-visualizer
+        env:
+          NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
+
+      - run: npx changelogithub
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

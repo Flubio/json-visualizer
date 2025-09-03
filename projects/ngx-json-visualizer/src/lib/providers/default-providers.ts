@@ -18,30 +18,29 @@ export class DefaultNodeRenderer implements NodeRenderer {
     const rect = container.querySelector('.node-rect')
     const nodeWidth = rect?.getAttribute('width') ? Number.parseFloat(rect.getAttribute('width')!) : 160
     const nodeHeight = rect?.getAttribute('height') ? Number.parseFloat(rect.getAttribute('height')!) : 40
-    const x = rect?.getAttribute('x') ? Number.parseFloat(rect.getAttribute('x')!) : 0
-    const y = rect?.getAttribute('y') ? Number.parseFloat(rect.getAttribute('y')!) : 0
 
-    // Create text for name
+    // Renderer uses local coordinates inside group (0,0). Use auto-layout markers so
+    // the parent component can opt-in to reposition only certain elements.
+
+    // Name text (auto-layout)
     const nameText = document.createElementNS('http://www.w3.org/2000/svg', 'text')
-    nameText.classList.add('node-text', 'node-name')
-    nameText.setAttribute('x', String(x + nodeWidth / 2))
-    nameText.setAttribute('y', String(y + nodeHeight / 2 - (node.value !== undefined ? 5 : 0)))
+    nameText.classList.add('node-text', 'node-name', 'auto-layout')
+    nameText.setAttribute('x', String(nodeWidth / 2))
+    nameText.setAttribute('y', String(nodeHeight / 2 - (node.value !== undefined ? 5 : 0)))
     nameText.setAttribute('text-anchor', 'middle')
     nameText.setAttribute('dominant-baseline', 'middle')
     nameText.textContent = this.truncateText(node.name, 20)
-
     container.appendChild(nameText)
 
-    // Add value text if it exists
+    // Value text (auto-layout)
     if (node.value !== undefined) {
       const valueText = document.createElementNS('http://www.w3.org/2000/svg', 'text')
-      valueText.classList.add('node-text', 'node-value')
-      valueText.setAttribute('x', String(x + nodeWidth / 2))
-      valueText.setAttribute('y', String(y + nodeHeight / 2 + 12))
+      valueText.classList.add('node-text', 'node-value', 'auto-layout')
+      valueText.setAttribute('x', String(nodeWidth / 2))
+      valueText.setAttribute('y', String(nodeHeight / 2 + 12))
       valueText.setAttribute('text-anchor', 'middle')
       valueText.setAttribute('dominant-baseline', 'middle')
       valueText.textContent = this.truncateText(String(node.value), 15)
-
       container.appendChild(valueText)
     }
   }

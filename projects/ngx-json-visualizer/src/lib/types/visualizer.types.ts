@@ -128,6 +128,7 @@ export interface VisualizerConfig {
   enableZooming?: boolean
   enableHover?: boolean
   panSpeedMultiplier?: number
+  zoomSpeedMultiplier?: number
   maxDepth?: number
 
   // Custom renderers and transformers

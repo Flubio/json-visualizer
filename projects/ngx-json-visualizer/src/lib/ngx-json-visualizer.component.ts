@@ -347,10 +347,9 @@ export class JsonVisualizerComponent implements OnInit, OnChanges, OnDestroy {
 
   ngOnDestroy(): void {
     // Clean up any active drag listeners
-    if (this.isDraggingNode) {
-      document.removeEventListener('mousemove', this.onNodeDrag)
-      document.removeEventListener('mouseup', this.onNodeDragEnd)
-    }
+    // Always remove listeners in case they were added earlier
+    document.removeEventListener('mousemove', this.onNodeDrag)
+    document.removeEventListener('mouseup', this.onNodeDragEnd)
 
     // Clean up momentum animation
     if (this.momentumAnimationId) {
@@ -568,6 +567,8 @@ export class JsonVisualizerComponent implements OnInit, OnChanges, OnDestroy {
       const group = document.createElementNS('http://www.w3.org/2000/svg', 'g')
       group.setAttribute('data-node-id', node.id)
       group.style.cursor = 'move'
+      // Position group using transform so renderer-internal coordinates remain relative
+      group.setAttribute('transform', `translate(${node.x}, ${node.y})`)
 
       // Store reference to node element
       this.nodeElements.set(node.id, group)
@@ -588,8 +589,9 @@ export class JsonVisualizerComponent implements OnInit, OnChanges, OnDestroy {
         // Create base rectangle with hitbox
         const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
         rect.classList.add('node-rect')
-        rect.setAttribute('x', String(node.x))
-        rect.setAttribute('y', String(node.y))
+        // Use local coordinates inside the group
+        rect.setAttribute('x', '0')
+        rect.setAttribute('y', '0')
         rect.setAttribute('width', String(nodeStyle.width || 160))
         rect.setAttribute('height', String(nodeStyle.height || 40))
         rect.setAttribute('rx', String(nodeStyle.rx || 6))
@@ -619,10 +621,11 @@ export class JsonVisualizerComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   private renderDefaultNode(node: VisualizerNode, container: SVGGElement): void {
+    // Render relative to the group's origin (0,0). The group is positioned via transform.
     const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
     rect.classList.add('node-rect')
-    rect.setAttribute('x', String(node.x))
-    rect.setAttribute('y', String(node.y))
+    rect.setAttribute('x', '0')
+    rect.setAttribute('y', '0')
     rect.setAttribute('width', '160')
     rect.setAttribute('height', '40')
     rect.setAttribute('rx', '6')
@@ -632,8 +635,8 @@ export class JsonVisualizerComponent implements OnInit, OnChanges, OnDestroy {
 
     const text = document.createElementNS('http://www.w3.org/2000/svg', 'text')
     text.classList.add('node-text')
-    text.setAttribute('x', String(node.x! + 80))
-    text.setAttribute('y', String(node.y! + 25))
+    text.setAttribute('x', String(160 / 2))
+    text.setAttribute('y', String(40 / 2 + 5))
     text.setAttribute('text-anchor', 'middle')
     text.setAttribute('dominant-baseline', 'middle')
     text.textContent = this.truncateText(node.name, 15)
@@ -674,7 +677,7 @@ export class JsonVisualizerComponent implements OnInit, OnChanges, OnDestroy {
         const contentCenterY = (minY + maxY) / 2
 
         // Center the content on first render if zoom hasn't been modified
-        if (this.zoomLevel === 1 && this.panX === 0 && this.panY === 0) {
+        if (this.zoomLevel === 100 && this.panX === 0 && this.panY === 0) {
           this.panX = -contentCenterX
           this.panY = -contentCenterY
         }
@@ -1070,24 +1073,23 @@ export class JsonVisualizerComponent implements OnInit, OnChanges, OnDestroy {
     const group = this.nodeElements.get(node.id)
     if (!group)
       return
+    // Move the whole group using transform so renderer-managed element coordinates remain local
+    if (node.x !== undefined && node.y !== undefined) {
+      group.setAttribute('transform', `translate(${node.x}, ${node.y})`)
 
-    const rect = group.querySelector('.node-rect') as SVGRectElement
-    const texts = group.querySelectorAll('.node-text')
+      // Update only auto-layout elements (renderers should mark elements they want auto-positioned with `auto-layout` class)
+      const rect = group.querySelector('.node-rect') as SVGRectElement
+      const autoElems = group.querySelectorAll('.auto-layout')
 
-    if (rect && node.x !== undefined && node.y !== undefined) {
-      rect.setAttribute('x', String(node.x))
-      rect.setAttribute('y', String(node.y))
+      const width = rect ? Number.parseFloat(rect.getAttribute('width') || '160') : 160
+      const height = rect ? Number.parseFloat(rect.getAttribute('height') || '40') : 40
 
-      // Update text positions
-      const width = Number.parseFloat(rect.getAttribute('width') || '160')
-      const height = Number.parseFloat(rect.getAttribute('height') || '40')
-
-      texts.forEach((text, index) => {
-        const textElement = text as SVGTextElement
-        textElement.setAttribute('x', String(node.x! + width / 2))
-        // Adjust y position based on whether it's name or value text
-        const yOffset = texts.length > 1 ? (index === 0 ? -5 : 12) : 0
-        textElement.setAttribute('y', String(node.y! + height / 2 + yOffset))
+      autoElems.forEach((el, index) => {
+        const elText = el as SVGTextElement
+        // center x by default
+        elText.setAttribute('x', String(width / 2))
+        const yOffset = autoElems.length > 1 ? (index === 0 ? -5 : 12) : 0
+        elText.setAttribute('y', String(height / 2 + yOffset))
       })
     }
   }
@@ -1111,17 +1113,18 @@ export class JsonVisualizerComponent implements OnInit, OnChanges, OnDestroy {
 
     event.preventDefault()
 
-    const delta = event.deltaY > 0 ? -0.1 : 0.1
-    const rect = this.svgRef.nativeElement.getBoundingClientRect()
-    const mouseX = event.clientX - rect.left
-    const mouseY = event.clientY - rect.top
+    const baseSpeed = 1.0
+    const zoomSpeed = (this.currentConfig?.zoomSpeedMultiplier ?? 1.0) * baseSpeed
+    const delta = event.deltaY > 0 ? -zoomSpeed : zoomSpeed
 
-    this.zoomToPoint(mouseX, mouseY, delta)
+    // Convert client coordinates to SVG user coordinates and zoom there
+    const p = this.clientToSvg(event.clientX, event.clientY)
+    this.zoomToPoint(p.svgX, p.svgY, delta)
     this.showZoomIndicator()
   }
 
   onMouseDown(event: MouseEvent): void {
-    if (!this.currentConfig.enableZooming)
+    if (!this.currentConfig.enablePanning)
       return
 
     // Don't start panning if we're about to drag a node
@@ -1153,7 +1156,7 @@ export class JsonVisualizerComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   onMouseMove(event: MouseEvent): void {
-    if (!this.currentConfig.enableZooming)
+    if (!this.currentConfig.enablePanning)
       return
 
     // Node dragging is handled by onNodeDrag
@@ -1193,7 +1196,7 @@ export class JsonVisualizerComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   onMouseUp(): void {
-    if (!this.currentConfig.enableZooming)
+    if (!this.currentConfig.enablePanning)
       return
 
     if (this.isPanning) {
@@ -1211,7 +1214,7 @@ export class JsonVisualizerComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   onMouseLeave(): void {
-    if (!this.currentConfig.enableZooming)
+    if (!this.currentConfig.enablePanning)
       return
 
     if (this.isPanning) {
@@ -1229,7 +1232,8 @@ export class JsonVisualizerComponent implements OnInit, OnChanges, OnDestroy {
     const rect = svg.getBoundingClientRect()
     const centerX = rect.width / 2
     const centerY = rect.height / 2
-    this.zoomToPoint(centerX, centerY, 0.2)
+    const zoomSpeed = (this.currentConfig?.zoomSpeedMultiplier ?? 1.0) * 10 // percent
+    this.zoomToPoint(centerX, centerY, zoomSpeed)
     this.showZoomIndicator()
   }
 
@@ -1238,7 +1242,8 @@ export class JsonVisualizerComponent implements OnInit, OnChanges, OnDestroy {
     const rect = svg.getBoundingClientRect()
     const centerX = rect.width / 2
     const centerY = rect.height / 2
-    this.zoomToPoint(centerX, centerY, -0.2)
+    const zoomSpeed = (this.currentConfig?.zoomSpeedMultiplier ?? 1.0) * 10 // percent
+    this.zoomToPoint(centerX, centerY, -zoomSpeed)
     this.showZoomIndicator()
   }
 
@@ -1251,22 +1256,24 @@ export class JsonVisualizerComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   private zoomToPoint(mouseX: number, mouseY: number, delta: number): void {
-    const oldZoom = this.zoomLevel
-    const newZoom = Math.max(this.minZoom, Math.min(this.maxZoom, this.zoomLevel + delta))
+    // Treat zoomLevel as percent (100 => scale 1.0)
+    const oldScale = this.zoomLevel / 100
+    const deltaScale = delta / 100
+    const newScale = Math.max(this.minZoom / 100, Math.min(this.maxZoom / 100, oldScale + deltaScale))
 
-    if (newZoom === oldZoom)
+    if (newScale === oldScale)
       return
 
-    // Calculate the zoom point in world coordinates
-    const worldX = (mouseX - this.panX) / oldZoom
-    const worldY = (mouseY - this.panY) / oldZoom
+    // World coordinates using old scale
+    const worldX = (mouseX - this.panX) / oldScale
+    const worldY = (mouseY - this.panY) / oldScale
 
-    // Update zoom level
-    this.zoomLevel = newZoom
+    // Update zoom level (keep percent representation)
+    this.zoomLevel = newScale * 100
 
-    // Adjust pan to keep the zoom point stationary
-    this.panX = mouseX - worldX * newZoom
-    this.panY = mouseY - worldY * newZoom
+    // Adjust pan to keep the zoom point stationary under new scale
+    this.panX = mouseX - worldX * newScale
+    this.panY = mouseY - worldY * newScale
 
     this.updateTransform()
   }
@@ -1275,6 +1282,33 @@ export class JsonVisualizerComponent implements OnInit, OnChanges, OnDestroy {
     if (this.contentGroupRef?.nativeElement) {
       const transform = `translate(${this.panX}, ${this.panY}) scale(${this.zoomLevel / 100})`
       this.contentGroupRef.nativeElement.setAttribute('transform', transform)
+    }
+  }
+
+  // Convert client coordinates to SVG local coordinates (relative to the SVG element)
+  private clientToSvg(clientX: number, clientY: number): { svgX: number, svgY: number } {
+    const svg = this.svgRef.nativeElement
+    const pt = svg.createSVGPoint()
+    pt.x = clientX
+    pt.y = clientY
+    const screenCTM = svg.getScreenCTM()
+    if (!screenCTM) {
+      return { svgX: clientX, svgY: clientY }
+    }
+    const inverse = screenCTM.inverse()
+    const local = pt.matrixTransform(inverse)
+    return { svgX: local.x, svgY: local.y }
+  }
+
+  // Convert client coordinates to world coordinates (taking into account pan/zoom transform applied to content group)
+  private clientToWorld(clientX: number, clientY: number): { x: number, y: number } {
+    const svgCoords = this.clientToSvg(clientX, clientY)
+    const scale = this.zoomLevel / 100
+    // The content group transform is translate(panX, panY) scale(scale)
+    // World position = (svgCoord - pan) / scale
+    return {
+      x: (svgCoords.svgX - this.panX) / scale,
+      y: (svgCoords.svgY - this.panY) / scale,
     }
   }
 
