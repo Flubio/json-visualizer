@@ -62,9 +62,9 @@ export class NodeDragHandler {
       y: mouseY - (node.y || 0),
     }
 
-    // Increase drag sensitivity for more responsive movement
-    this.dragState.dragOffset.x *= 0.8 // Reduce offset to make movement more responsive
-    this.dragState.dragOffset.y *= 0.8
+    // Record drag start time to prevent early collision checks
+    this.dragStartTime = Date.now()
+    this.lastNodePosition = null // Reset position smoothing
 
     // Add visual feedback for dragging
     this.addDragVisualFeedback(node)
@@ -94,8 +94,12 @@ export class NodeDragHandler {
 
   private lastMousePosition: { x: number, y: number } | null = null
   private lastCollisionCheck = 0
-  private collisionCheckInterval = 16 // Check collisions every 16ms (60fps) for smoother feedback
+  private collisionCheckInterval = 50 // Increase interval to reduce jitter from collision adjustments
   private lastLinkUpdate = 0
+  private dragStartTime = 0
+  private initialDragThreshold = 100 // Don't check collisions for first 100ms of drag
+  private lastNodePosition: { x: number, y: number } | null = null
+  private positionSmoothing = 0.3 // Small amount of smoothing to reduce jitter
 
   private onNodeDrag = (event: MouseEvent): void => {
     if (!this.dragState.isDragging || !this.dragState.draggedNode || !this.dragState.svgElement) {
@@ -128,7 +132,8 @@ export class NodeDragHandler {
         let finalX = newX
         let finalY = newY
 
-        if (now - this.lastCollisionCheck > this.collisionCheckInterval) {
+        if (now - this.lastCollisionCheck > this.collisionCheckInterval
+          && now - this.dragStartTime > this.initialDragThreshold) {
           // Check collisions and find valid position
           const validPosition = this.collisionDetector.findValidPosition(this.dragState.draggedNode, newX, newY)
           finalX = validPosition.x
@@ -139,9 +144,27 @@ export class NodeDragHandler {
           this.collisionDetector.highlightCollisions(this.dragState.draggedNode, newX, newY, this.dragState.nodeElements)
         }
 
+        // Apply position smoothing to reduce jitter
+        if (this.lastNodePosition) {
+          finalX = this.lastNodePosition.x + (finalX - this.lastNodePosition.x) * this.positionSmoothing
+          finalY = this.lastNodePosition.y + (finalY - this.lastNodePosition.y) * this.positionSmoothing
+        }
+        this.lastNodePosition = { x: finalX, y: finalY }
+
         // Update position
         this.dragState.draggedNode.x = finalX
         this.dragState.draggedNode.y = finalY
+
+        // Ensure the position is also updated in the allNodes array
+        const nodeInAllNodes = this.allNodes.find(n => n.id === this.dragState.draggedNode!.id)
+        if (nodeInAllNodes) {
+          nodeInAllNodes.x = finalX
+          nodeInAllNodes.y = finalY
+          console.error('Updated node position in allNodes:', nodeInAllNodes.id, finalX, finalY)
+        }
+        else {
+          console.error('Could not find node in allNodes array:', this.dragState.draggedNode!.id)
+        }
 
         // Update visual representation immediately for smooth movement
         this.updateNodePositionDirect(this.dragState.draggedNode)
@@ -186,6 +209,7 @@ export class NodeDragHandler {
     this.dragState.draggedNode = null
     this.dragState.svgElement = null
     this.lastMousePosition = null
+    this.lastNodePosition = null // Reset position smoothing
 
     // Remove global listeners
     document.removeEventListener('mousemove', this.onNodeDrag)
@@ -201,9 +225,9 @@ export class NodeDragHandler {
     // Move the whole group using transform - this is the fastest way
     group.setAttribute('transform', `translate(${node.x}, ${node.y})`)
 
-    // Update links during drag for better visual feedback (more frequent updates)
+    // Update links during drag for better visual feedback (less frequent updates to reduce jitter)
     const now = Date.now()
-    if (now - this.lastLinkUpdate > 8) { // Update links at ~120fps during drag
+    if (now - this.lastLinkUpdate > 100) { // Update links every 100ms during drag to reduce flicker
       this.svgRenderer.updateLinks()
       this.lastLinkUpdate = now
     }

@@ -12,10 +12,10 @@ export class SVGRenderer {
     private nodeDragHandler?: any, // Use any to avoid circular dependency
   ) { }
 
-  renderVisualization(nodes: VisualizerNode[], links: Array<{ source: string, target: string }>): void {
+  renderVisualization(nodes: VisualizerNode[], links: Array<{ source: string, target: string }>, allNodes?: VisualizerNode[]): void {
     const svg = this.svgRef.nativeElement
     const contentGroup = this.contentGroupRef.nativeElement
-    const allNodes = this.flattenNodes(nodes)
+    const flattenedNodes = allNodes || this.flattenNodes(nodes)
 
     this.links = links
 
@@ -30,13 +30,13 @@ export class SVGRenderer {
     this.setupSvgDefs(svg)
 
     // Render links first (so they appear behind nodes)
-    this.renderLinks(contentGroup, allNodes)
+    this.renderLinks(contentGroup, flattenedNodes)
 
     // Render nodes using configured renderers
-    this.renderNodes(contentGroup, allNodes)
+    this.renderNodes(contentGroup, flattenedNodes)
 
     // Update SVG dimensions
-    this.updateSvgDimensions(svg, allNodes)
+    this.updateSvgDimensions(svg, flattenedNodes)
 
     // Update node drag handler with node elements
     if (this.nodeDragHandler) {
@@ -88,6 +88,10 @@ export class SVGRenderer {
         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path')
         path.classList.add('link-line')
 
+        // Add data attributes for debugging
+        path.setAttribute('data-source', link.source)
+        path.setAttribute('data-target', link.target)
+
         // Calculate control points for smooth curve
         const dx = Math.abs(x2 - x1)
         const controlOffset = Math.min(dx * 0.5, 100) // Limit curve intensity
@@ -110,6 +114,10 @@ export class SVGRenderer {
           path.setAttribute('stroke-width', '2')
 
         container.appendChild(path)
+      }
+      else {
+        // Debug: log when links can't be rendered
+        console.error('Cannot render link:', link, 'sourceNode:', !!sourceNode, 'targetNode:', !!targetNode)
       }
     })
   }
@@ -271,13 +279,14 @@ export class SVGRenderer {
     if (!contentGroup)
       return
 
-    // Remove existing links more efficiently
-    const existingLinks = contentGroup.querySelectorAll('.link-line')
-    if (existingLinks.length > 0) {
-      existingLinks.forEach(link => link.remove())
-    }
+    // Debug: check if allNodes is properly set
+    console.error('updateLinks called, allNodes length:', this.allNodes?.length, 'links length:', this.links?.length)
 
-    // Re-render links with updated positions
+    // Get existing link elements
+    const existingLinks = contentGroup.querySelectorAll('.link-line')
+
+    // Always update by re-rendering for now - the issue might be elsewhere
+    existingLinks.forEach(link => link.remove())
     if (this.allNodes && this.allNodes.length > 0) {
       this.renderLinks(contentGroup, this.allNodes)
     }

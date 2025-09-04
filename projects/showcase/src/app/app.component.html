@@ -11,7 +11,21 @@
           Cursor: {{ draggingEnabled() ? 'move' : 'default' }}
         </span>
       </div>
+      <div id="wrapper">
+        <h2>Change JSON Object</h2>
+        <div class="json-editor-container">
+          <div contenteditable="true" (input)="onDataChange($event)" class="json-editor" [class.processing]="isProcessing()">
+            {{data() | json}}
+          </div>
+          <div class="editor-status" *ngIf="isProcessing()">
+            <span class="processing-indicator">Processing JSON...</span>
+          </div>
+          <div class="size-indicator">
+            Size: {{ (data() | json).length | number }} characters
+          </div>
+        </div>
+      </div>
     </div>
   </div>
-  <ngx-json-visualizer [data]="data()" [config]="visualizerConfig" [enableDebug]="true" />
+  <ngx-json-visualizer [height]="400" [data]="data()" [config]="visualizerConfig" [enableDebug]="true" />
 </div>

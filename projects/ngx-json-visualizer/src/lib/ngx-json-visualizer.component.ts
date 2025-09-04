@@ -1,4 +1,4 @@
-import type { ElementRef, OnChanges, OnDestroy, OnInit } from '@angular/core'
+import type { ElementRef, OnChanges, OnDestroy, OnInit, SimpleChanges } from '@angular/core'
 import type { VisualizerConfig, VisualizerNode } from './types/visualizer.types'
 import { CommonModule } from '@angular/common'
 import { Component, Input, ViewChild } from '@angular/core'
@@ -108,6 +108,7 @@ export class JsonVisualizerComponent implements OnInit, OnChanges, OnDestroy {
 
   private nodes: VisualizerNode[] = []
   private links: Array<{ source: string, target: string }> = []
+  private allNodes: VisualizerNode[] = [] // Store all nodes as an instance variable
   currentConfig!: VisualizerConfig
   debugVisible = false
 
@@ -125,12 +126,31 @@ export class JsonVisualizerComponent implements OnInit, OnChanges, OnDestroy {
     this.render()
   }
 
-  ngOnChanges(): void {
-    this.currentConfig = this.config || createDefaultConfig()
-    if (this.zoomPanHandler) {
+  ngOnChanges(changes: SimpleChanges): void {
+    let shouldReRender = false
+    let shouldReInitialize = false
+
+    // Update config if it changed
+    if (Object.prototype.hasOwnProperty.call(changes, 'config')) {
+      this.currentConfig = this.config || createDefaultConfig()
+      shouldReInitialize = true
+      shouldReRender = true
+    }
+
+    // Check if data changed
+    if (Object.prototype.hasOwnProperty.call(changes, 'data')) {
+      shouldReRender = true
+    }
+
+    // Re-initialize handlers only if config changed
+    if (shouldReInitialize) {
       this.initializeUtilityHandlers()
     }
-    this.render()
+
+    // Re-render if anything changed
+    if (shouldReRender) {
+      this.render()
+    }
   }
 
   ngOnDestroy(): void {
@@ -198,23 +218,23 @@ export class JsonVisualizerComponent implements OnInit, OnChanges, OnDestroy {
       this.nodes = result.nodes
       this.links = result.links
 
-      // Flatten nodes for processing
-      const allNodes = this.flattenNodes(this.nodes)
+      // Flatten nodes for processing - store as instance variable to maintain reference
+      this.allNodes = this.flattenNodes(this.nodes)
 
       // Calculate layout using layout calculator
-      const positions = this.layoutCalculator.calculateLayout(allNodes, this.links)
+      const positions = this.layoutCalculator.calculateLayout(this.allNodes, this.links)
       this.layoutCalculator.applyPositionsToNodes(this.nodes, positions)
 
       // Update utility handlers with current nodes and links
-      this.collisionDetector.setAllNodes(allNodes)
-      this.svgRenderer.setAllNodes(allNodes)
+      this.collisionDetector.setAllNodes(this.allNodes)
+      this.svgRenderer.setAllNodes(this.allNodes)
       this.svgRenderer.setLinks(this.links)
-      this.nodeDragHandler.setAllNodes(allNodes)
+      this.nodeDragHandler.setAllNodes(this.allNodes)
       this.nodeDragHandler.setLinks(this.links)
       this.nodeDragHandler.setLayoutCalculator(this.layoutCalculator)
 
       // Render visualization using SVG renderer
-      this.svgRenderer.renderVisualization(this.nodes, this.links)
+      this.svgRenderer.renderVisualization(this.nodes, this.links, this.allNodes)
 
       // Update node drag handler with pan state
       const panState = this.zoomPanHandler.getPanState()

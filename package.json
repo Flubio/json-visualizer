@@ -1,7 +1,7 @@
 {
   "name": "json-visualizer",
   "version": "0.0.0",
-  "packageManager": "pnpm@10.15.0",
+  "packageManager": "pnpm@10.15.1",
   "description": "An highly customizable and extensible Data Visualizer",
   "author": {
     "name": "Flubio",

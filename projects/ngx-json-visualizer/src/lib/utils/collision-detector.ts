@@ -124,7 +124,7 @@ export class CollisionDetector {
             else {
               // If we can't find a valid position nearby, move it further away
               nodeB.x = nodeA.x + widthA + margin + 20
-              nodeB.y = nodeA.y + Math.random() * 100 - 50 // Add some randomness
+              nodeB.y = nodeA.y + Math.random() * 100 - 50
             }
           }
         }
