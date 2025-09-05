@@ -70,8 +70,10 @@ export class NodeDragHandler {
     this.addDragVisualFeedback(node)
 
     // Add global listeners for mouse move and up
-    document.addEventListener('mousemove', this.onNodeDrag)
-    document.addEventListener('mouseup', this.onNodeDragEnd)
+    // Listen on window to catch events outside SVG/document
+    window.addEventListener('mousemove', this.onNodeDrag)
+    window.addEventListener('mouseup', this.onNodeDragEnd)
+    window.addEventListener('mouseleave', this.onNodeDragEnd)
 
     event.preventDefault()
   }
@@ -95,13 +97,18 @@ export class NodeDragHandler {
   private lastMousePosition: { x: number, y: number } | null = null
   private lastCollisionCheck = 0
   private collisionCheckInterval = 50 // Increase interval to reduce jitter from collision adjustments
-  private lastLinkUpdate = 0
   private dragStartTime = 0
   private initialDragThreshold = 100 // Don't check collisions for first 100ms of drag
   private lastNodePosition: { x: number, y: number } | null = null
   private positionSmoothing = 0.3 // Small amount of smoothing to reduce jitter
 
   private onNodeDrag = (event: MouseEvent): void => {
+    // Check if left mouse button is still pressed
+    if ((event.buttons & 1) === 0) {
+      this.onNodeDragEnd()
+      return
+    }
+
     if (!this.dragState.isDragging || !this.dragState.draggedNode || !this.dragState.svgElement) {
       return
     }
@@ -185,7 +192,7 @@ export class NodeDragHandler {
       this.removeDragVisualFeedback(this.dragState.draggedNode)
 
       // Update links after drag is complete for better performance
-      this.svgRenderer.updateLinks()
+      this.svgRenderer.updateLinks(this.allNodes, this.links)
 
       // Trigger reordering of connected nodes for better layout
       if (this.layoutCalculator && this.allNodes && this.links) {
@@ -195,11 +202,11 @@ export class NodeDragHandler {
           this.links,
         )
         // Update positions for reordered nodes and refresh links
-        this.svgRenderer.updateLinks()
+        this.svgRenderer.updateLinks(this.allNodes, this.links)
       }
 
       // Final link update to ensure all connections are properly rendered
-      setTimeout(() => this.svgRenderer.updateLinks(), 16)
+      setTimeout(() => this.svgRenderer.updateLinks(this.allNodes, this.links), 16)
     }
 
     // Clear collision highlights
@@ -212,9 +219,13 @@ export class NodeDragHandler {
     this.lastNodePosition = null // Reset position smoothing
 
     // Remove global listeners
-    document.removeEventListener('mousemove', this.onNodeDrag)
-    document.removeEventListener('mouseup', this.onNodeDragEnd)
+    window.removeEventListener('mousemove', this.onNodeDrag)
+    window.removeEventListener('mouseup', this.onNodeDragEnd)
+    window.removeEventListener('mouseleave', this.onNodeDragEnd)
   }
+
+  private lastLinkUpdate = 0
+  private linkUpdateThrottle = 100 // ms between updates
 
   private updateNodePositionDirect(node: VisualizerNode): void {
     const group = this.dragState.nodeElements.get(node.id)
@@ -225,10 +236,10 @@ export class NodeDragHandler {
     // Move the whole group using transform - this is the fastest way
     group.setAttribute('transform', `translate(${node.x}, ${node.y})`)
 
-    // Update links during drag for better visual feedback (less frequent updates to reduce jitter)
+    // Throttle link updates to avoid performance issues
     const now = Date.now()
-    if (now - this.lastLinkUpdate > 100) { // Update links every 100ms during drag to reduce flicker
-      this.svgRenderer.updateLinks()
+    if (now - this.lastLinkUpdate > this.linkUpdateThrottle) {
+      this.svgRenderer.updateLinks(this.allNodes, this.links)
       this.lastLinkUpdate = now
     }
   }
@@ -256,7 +267,7 @@ export class NodeDragHandler {
       elText.setAttribute('y', String(height / 2 + yOffset))
     })
     // Update connected links
-    this.svgRenderer.updateLinks()
+    this.svgRenderer.updateLinks(this.allNodes, this.links)
   }
 
   isDragging(): boolean {

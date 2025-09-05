@@ -1,16 +1,21 @@
 import type { ElementRef } from '@angular/core'
 import type { NodeStyle, VisualizerConfig, VisualizerNode } from '../types/visualizer.types'
+import { select } from 'd3-selection'
 
 export class SVGRenderer {
   private nodeElements = new Map<string, SVGGElement>()
   private links: Array<{ source: string, target: string }> = []
+  private linkSelection: any
 
   constructor(
     private config: VisualizerConfig,
     private svgRef: ElementRef<SVGSVGElement>,
     private contentGroupRef: ElementRef<SVGGElement>,
     private nodeDragHandler?: any, // Use any to avoid circular dependency
-  ) { }
+  ) {
+    this.svgRef = svgRef
+    this.contentGroupRef = contentGroupRef
+  }
 
   renderVisualization(nodes: VisualizerNode[], links: Array<{ source: string, target: string }>, allNodes?: VisualizerNode[]): void {
     const svg = this.svgRef.nativeElement
@@ -274,21 +279,67 @@ export class SVGRenderer {
     svg.setAttribute('height', '100%')
   }
 
-  updateLinks(): void {
-    const contentGroup = this.contentGroupRef.nativeElement
-    if (!contentGroup)
+  updateLinks(nodes: VisualizerNode[], links: { source: string, target: string }[]): void {
+    if (!this.svgRef?.nativeElement || !this.contentGroupRef?.nativeElement) {
       return
+    }
 
-    // Debug: check if allNodes is properly set
-    console.error('updateLinks called, allNodes length:', this.allNodes?.length, 'links length:', this.links?.length)
+    // Use passed nodes and links
+    this.allNodes = nodes
+    this.links = links
 
-    // Get existing link elements
-    const existingLinks = contentGroup.querySelectorAll('.link-line')
+    console.error('updateLinks called, allNodes length:', this.allNodes.length, 'links length:', this.links.length)
 
-    // Always update by re-rendering for now - the issue might be elsewhere
-    existingLinks.forEach(link => link.remove())
-    if (this.allNodes && this.allNodes.length > 0) {
-      this.renderLinks(contentGroup, this.allNodes)
+    const nodeMap = new Map(this.allNodes.map(node => [node.id, node]))
+
+    if (!this.linkSelection) {
+      this.linkSelection = select(this.contentGroupRef.nativeElement).selectAll('.link-line')
+    }
+
+    this.linkSelection = this.linkSelection.data(this.links, (d: { source: string, target: string }) => `${d.source}-${d.target}`)
+
+    // Exit
+    this.linkSelection.exit().remove()
+
+    // Enter
+    const enterSelection = this.linkSelection.enter().append('path').attr('class', 'link-line').attr('fill', 'none').attr('marker-end', 'url(#arrowhead)')
+
+    const linkTheme = this.config.theme?.link
+    if (linkTheme) {
+      enterSelection
+        .attr('stroke', linkTheme.stroke)
+        .attr('stroke-width', linkTheme.strokeWidth)
+    }
+
+    // Merge
+    this.linkSelection = enterSelection.merge(this.linkSelection)
+
+    // Update
+    this.linkSelection.attr('d', (d: { source: string, target: string }) => {
+      const sourceNode = nodeMap.get(d.source)
+      const targetNode = nodeMap.get(d.target)
+
+      if (sourceNode && targetNode && sourceNode.x !== undefined && sourceNode.y !== undefined && targetNode.x !== undefined && targetNode.y !== undefined) {
+        // Determine node dimensions from style
+        const sourceStyle = this.getNodeRenderer(sourceNode)?.getNodeStyle(sourceNode) || this.getDefaultNodeStyle(sourceNode)
+        const targetStyle = this.getNodeRenderer(targetNode)?.getNodeStyle(targetNode) || this.getDefaultNodeStyle(targetNode)
+        const sourceWidth = sourceStyle.width ?? 0
+        const sourceHeight = sourceStyle.height ?? 0
+        const targetWidth = targetStyle.width ?? 0
+
+        const sourceX = sourceNode.x + sourceWidth / 2
+        const sourceY = sourceNode.y + sourceHeight
+        const targetX = targetNode.x + targetWidth / 2
+        const targetY = targetNode.y
+        return `M${sourceX},${sourceY} C${sourceX},${(sourceY + targetY) / 2} ${targetX},${(sourceY + targetY) / 2} ${targetX},${targetY}`
+      }
+      return ''
+    })
+  }
+
+  clear(): void {
+    if (this.contentGroupRef?.nativeElement) {
+      this.contentGroupRef.nativeElement.innerHTML = ''
     }
   }
 

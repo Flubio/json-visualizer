@@ -160,31 +160,48 @@ export class ZoomPanHandler {
   }
 
   zoomIn(): void {
-    const svg = this.svgRef.nativeElement
-    const rect = svg.getBoundingClientRect()
-    const centerX = rect.width / 2
-    const centerY = rect.height / 2
-    const zoomSpeed = (this.config?.zoomSpeedMultiplier ?? 1.0) * 10 // percent
-    this.zoomToPoint(centerX, centerY, zoomSpeed)
-    this.showZoomIndicator()
+    const multiplier = this.config.zoomSpeedMultiplier ?? 1.0
+    const newZoomLevel = this.panState.zoomLevel * (1 + multiplier / 100)
+    this.setZoom(newZoomLevel)
   }
 
   zoomOut(): void {
+    const multiplier = this.config.zoomSpeedMultiplier ?? 1.0
+    const newZoomLevel = this.panState.zoomLevel / (1 + multiplier / 100)
+    this.setZoom(newZoomLevel)
+  }
+
+  resetZoom(): void {
+    this.setZoom(100)
+  }
+
+  setZoom(newZoomLevel: number): void {
     const svg = this.svgRef.nativeElement
     const rect = svg.getBoundingClientRect()
     const centerX = rect.width / 2
     const centerY = rect.height / 2
-    const zoomSpeed = (this.config?.zoomSpeedMultiplier ?? 1.0) * 10 // percent
-    this.zoomToPoint(centerX, centerY, -zoomSpeed)
-    this.showZoomIndicator()
-  }
+    const zoomLevel = Math.max(this.minZoom, Math.min(this.maxZoom, newZoomLevel))
 
-  resetZoom(): void {
-    this.panState.zoomLevel = 150 // Reset to 150% for bigger default view
-    this.panState.panX = 0
-    this.panState.panY = 0
+    // Treat zoomLevel as percent (100 => scale 1.0)
+    const oldScale = this.panState.zoomLevel / 100
+    const deltaScale = (zoomLevel - this.panState.zoomLevel) / 100
+    const newScale = Math.max(this.minZoom / 100, Math.min(this.maxZoom / 100, oldScale + deltaScale))
+
+    if (newScale === oldScale)
+      return
+
+    // World coordinates using old scale
+    const worldX = (centerX - this.panState.panX) / oldScale
+    const worldY = (centerY - this.panState.panY) / oldScale
+
+    // Update zoom level (keep percent representation)
+    this.panState.zoomLevel = newScale * 100
+
+    // Adjust pan to keep the zoom point stationary under new scale
+    this.panState.panX = centerX - worldX * newScale
+    this.panState.panY = centerY - worldY * newScale
+
     this.updateTransform()
-    this.showZoomIndicator()
   }
 
   private zoomToPoint(mouseX: number, mouseY: number, delta: number): void {

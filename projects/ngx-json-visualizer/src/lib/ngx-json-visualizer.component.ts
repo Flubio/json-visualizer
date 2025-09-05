@@ -260,6 +260,13 @@ export class JsonVisualizerComponent implements OnInit, OnChanges, OnDestroy {
     return this.zoomPanHandler?.getZoomLevel() || 100
   }
 
+  resetZoom(): void {
+    if (this.zoomPanHandler) {
+      this.zoomPanHandler.resetZoom()
+      this.svgRenderer.updateLinks(this.allNodes, this.links)
+    }
+  }
+
   toggleDebug(): void {
     this.debugVisible = !this.debugVisible
   }
@@ -315,11 +322,10 @@ export class JsonVisualizerComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   zoomOut(): void {
-    this.zoomPanHandler?.zoomOut()
-  }
-
-  resetZoom(): void {
-    this.zoomPanHandler?.resetZoom()
+    if (this.zoomPanHandler) {
+      this.zoomPanHandler.zoomOut()
+      this.svgRenderer.updateLinks(this.allNodes, this.links)
+    }
   }
 
   // Helper methods
